@@ -104,26 +104,26 @@ let data = [
 ];
 
 
-let classifer;
+let classifier; // Fixed typo in variable name
 let r = 147;
 let g = 112;
 let b = 219;
 let rSlider, gSlider, bSlider;
 let label = "learning colors";
+let isModelReady = false; // Track if model is ready
 
 function setup() {
   createCanvas(640, 640);
-
+  
   // For this example to work across all browsers
   // "webgl" or "cpu" needs to be set as the backend
   ml5.setBackend("webgl");
 
-  rSlider = createSlider(0, 255, r).position(20, 640+20).size(600);
-  gSlider = createSlider(0, 255, g).position(20, 640+40).size(600);
-  bSlider = createSlider(0, 255, b).position(20, 640+60).size(600);
+  // Create sliders with labels
+  createColorControls();
 
   // Step 2: set your neural network options
-  let options = {
+  const options = {
     task: "classification",
     debug: true,
   };
@@ -132,67 +132,99 @@ function setup() {
   classifier = ml5.neuralNetwork(options);
 
   // Step 4: add data to the neural network
-  for (let i = 0; i < data.length; i++) {
-    let item = data[i];
-    let inputs = [item.r, item.g, item.b];
-    let outputs = [item.color];
-    classifier.addData(inputs, outputs);
-  }
+  addTrainingData();
 
-  // Step 5: normalize your data;
+  // Step 5: normalize your data
   classifier.normalizeData();
 
   // Step 6: train your neural network
   const trainingOptions = {
-    epochs: 256,
-    batchSize: 32,
+    epochs: 512,
+    batchSize: 12,
   };
   classifier.train(trainingOptions, finishedTraining);
 }
+
+function createColorControls() {
+  const sliderY = height + 20;
+  const sliderSpacing = 25;
+  
+  rSlider = createSlider(0, 255, r);
+  gSlider = createSlider(0, 255, g);
+  bSlider = createSlider(0, 255, b);
+  
+  const sliders = [rSlider, gSlider, bSlider];
+  const labels = ['R', 'G', 'B'];
+  
+  sliders.forEach((slider, i) => {
+    slider.position(60, sliderY + i * sliderSpacing)
+          .size(560);
+    createSpan(labels[i]).position(20, sliderY + i * sliderSpacing);
+  });
+}
+
+function addTrainingData() {
+  data.forEach(item => {
+    const inputs = [item.r, item.g, item.b];
+    const outputs = [item.color];
+    classifier.addData(inputs, outputs);
+  });
+}
+
 // Step 7: use the trained model
 function finishedTraining() {
+  isModelReady = true;
   classify();
 }
 
 // Step 8: make a classification
 function classify() {
+  if (!isModelReady) return;
   const input = [r, g, b];
   classifier.classify(input, handleResults);
 }
 
 function draw() {
-
+  // Update color values from sliders
   r = rSlider.value();
   g = gSlider.value();
   b = bSlider.value();
+  
+  // Set background
   background(r, g, b);
 
   // Calculate brightness using YIQ formula
-  let brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
   
   // Set text color based on background brightness
-  if (brightness >= 128) {
-    fill(0); // Dark
-  } else {
-    fill(255); // White
-  }
+  fill(brightness >= 128 ? 0 : 255);
 
+  // Draw text
   textAlign(CENTER, CENTER);
+  drawText();
+}
 
+function drawText() {
+  // Draw RGB values
   textSize(16);
   text(`input: R ${r} G ${g} B ${b}`, width/2, height-20);
 
+  // Draw label
   textSize(64);
-  text(`beep boop\n${label}`, width / 2, height / 2);
+  const displayText = isModelReady ? label : "Training...";
+  text(`beep boop\n${displayText}`, width / 2, height / 2);
 }
 
 // Step 9: define a function to handle the results of your classification
 function handleResults(results, error) {
   if (error) {
-    console.error(error);
+    console.error("Classification error:", error);
     return;
   }
-  label = results[0].label;
-  console.log(results); // {label: 'color', confidence: 0.number};
-  classify();
+  
+  if (results && results[0]) {
+    label = results[0].label;
+    console.log("Classification result:", results[0]);
+    classify(); // Continue classification loop
+  }
 }
