@@ -144,8 +144,8 @@ function setup() {
 
   // Step 6: train your neural network
   const trainingOptions = {
-    epochs: 1024,
-    batchSize: 32,
+    epochs: 2048,
+    batchSize: 64,
   };
   classifier.train(trainingOptions, finishedTraining);
 }
